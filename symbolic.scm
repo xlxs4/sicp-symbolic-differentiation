@@ -24,6 +24,14 @@
          (* m1 m2))
         (else (list '* m1 m2))))
 
+(define (make-exponentiation base expn)
+  (cond ((=number? base 1) 1)
+        ((=number? expn 0) 1)
+        ((=number? expn 1) base)
+        ((and (number? base) (number? expn))
+         (expt base expn))
+        (else (list '** base expn))))
+
 (define (sum? x)
   (and (pair? x) (eq? (car x) '+)))
 
@@ -36,6 +44,12 @@
 (define (multiplier p) (cadr p))
 (define (multiplicand p) (caddr p))
 
+(define (exponentiation? x)
+  (and (pair? x) (eq? (car x) '**)))
+
+(define (base exp) (cadr exp))
+(define (exponent exp) (caddr exp))
+
 (define (deriv exp var)
   (cond ((number? exp) 0)
         ((variable? exp)
@@ -44,12 +58,23 @@
          (make-sum (deriv (addend exp) var)
                    (deriv (augend exp) var)))
         ((product? exp)
-         (make-sum
-          (make-product
-           (multiplier exp)
-           (deriv (multiplicand exp) var))
-          (make-product
-           (deriv (multiplier exp) var)
-           (multiplicand exp))))
+         (let ((m1 (multiplier exp))
+               (m2 (multiplicand exp)))
+           (make-sum
+            (make-product m1 (deriv m2 var))
+            (make-product (deriv m1 var) m2))))
+        ((exponentiation? exp)
+         (let ((b (base exp))
+               (e (exponent exp)))
+           (make-product
+            (make-product
+             e
+             (make-exponentiation b
+                                  (make-sum e -1)))
+            (deriv b var))))
         (else (error "unknown expression
                       type: DERIV" exp))))
+
+;; (deriv '(+ x 3) 'x)
+;; (deriv '(* x y) 'x)
+;; (deriv '(** x 2) 'x)
